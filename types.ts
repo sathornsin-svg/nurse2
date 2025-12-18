@@ -36,5 +36,13 @@ export interface Shift {
   subType?: string; // e.g., "Sick Leave", "Half Day"
 }
 
+export interface DbConfig {
+  host: string;
+  port: string;
+  database: string;
+  username: string;
+  password?: string;
+}
+
 export type ViewType = 'วัน' | 'สัปดาห์' | 'เดือน';
 export type MenuTab = 'dashboard' | 'schedule' | 'staff' | 'reports' | 'settings';

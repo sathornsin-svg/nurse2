@@ -4,7 +4,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import ScheduleGrid from './components/ScheduleGrid';
 import { MOCK_STAFF, MOCK_SHIFTS } from './constants';
-import { Department, ViewType, MenuTab, Staff, ShiftType } from './types';
+import { Department, ViewType, MenuTab, Staff, ShiftType, DbConfig } from './types';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, 
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
@@ -21,6 +21,15 @@ const App: React.FC = () => {
     เช้า: true,
     ดึก: true,
     หยุด: false,
+  });
+
+  // DB Config State
+  const [dbConfig, setDbConfig] = useState<DbConfig>({
+    host: 'localhost',
+    port: '3306',
+    database: 'hosDB',
+    username: 'root',
+    password: ''
   });
 
   // Staff Form State
@@ -93,7 +102,6 @@ const App: React.FC = () => {
     setShiftFilters(prev => ({ ...prev, [type]: checked }));
   };
 
-  // Image upload handling
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, staffId?: string) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -101,10 +109,8 @@ const App: React.FC = () => {
       reader.onloadend = () => {
         const base64String = reader.result as string;
         if (staffId) {
-          // Update existing staff
           setStaffList(prev => prev.map(s => s.id === staffId ? { ...s, avatar: base64String } : s));
         } else {
-          // Set for new staff form
           setNewStaffAvatar(base64String);
         }
       };
@@ -141,6 +147,11 @@ const App: React.FC = () => {
     );
   };
 
+  const handleDbConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setDbConfig(prev => ({ ...prev, [name]: value }));
+  };
+
   const daysOfWeek = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 
   return (
@@ -160,7 +171,7 @@ const App: React.FC = () => {
         <main className="flex-1 flex flex-col min-w-0 bg-background-light dark:bg-background-dark overflow-hidden">
           {activeTab === 'schedule' ? (
             <>
-              {/* Schedule Tab content unchanged */}
+              {/* Schedule Tab content */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark sticky top-0 z-20">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-2xl font-bold">ตารางเวร</h1>
@@ -263,7 +274,6 @@ const App: React.FC = () => {
                     ข้อมูลพยาบาลใหม่
                   </h3>
                   <form onSubmit={handleAddStaff} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Image Upload for New Staff */}
                     <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                       <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                         <div className="size-32 rounded-full overflow-hidden border-4 border-white dark:border-slate-700 shadow-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
@@ -278,87 +288,40 @@ const App: React.FC = () => {
                         </div>
                       </div>
                       <p className="mt-3 text-xs font-medium text-text-secondary dark:text-slate-400">คลิกเพื่ออัปโหลดรูป</p>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        onChange={(e) => handleImageChange(e)}
-                      />
+                      <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={(e) => handleImageChange(e)} />
                     </div>
 
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium mb-1">ชื่อ-นามสกุล</label>
-                          <input 
-                            type="text" 
-                            required
-                            value={newStaffName}
-                            onChange={(e) => setNewStaffName(e.target.value)}
-                            className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-primary"
-                            placeholder="กัลยา นามดี"
-                          />
+                          <input type="text" required value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1">แผนก</label>
-                          <select 
-                            value={newStaffDept}
-                            onChange={(e) => setNewStaffDept(e.target.value as Department)}
-                            className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-primary"
-                          >
+                          <select value={newStaffDept} onChange={(e) => setNewStaffDept(e.target.value as Department)} className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
                             {Object.values(Department).map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                       </div>
-
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium mb-1">วันที่ไม่สะดวกเข้าเวร (1-31)</label>
-                          <input 
-                            type="text" 
-                            value={tempUnavailableDates}
-                            onChange={(e) => setTempUnavailableDates(e.target.value)}
-                            className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-primary"
-                            placeholder="เช่น 5, 12, 28"
-                          />
+                          <label className="block text-sm font-medium mb-1">วันที่ไม่สะดวก (1-31)</label>
+                          <input type="text" value={tempUnavailableDates} onChange={(e) => setTempUnavailableDates(e.target.value)} className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-2">วันในสัปดาห์ที่ไม่สะดวก</label>
+                          <label className="block text-sm font-medium mb-2">วันสัปดาห์ที่ไม่สะดวก</label>
                           <div className="flex flex-wrap gap-1.5">
                             {daysOfWeek.map((day, idx) => (
-                              <button
-                                key={day}
-                                type="button"
-                                onClick={() => toggleDayOfWeek(idx)}
-                                className={`size-8 rounded-full border text-[10px] font-bold transition-all ${
-                                  tempUnavailableDays.includes(idx)
-                                    ? 'bg-primary border-primary text-white'
-                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
-                                }`}
-                              >
-                                {day}
-                              </button>
+                              <button key={day} type="button" onClick={() => toggleDayOfWeek(idx)} className={`size-8 rounded-full border text-[10px] font-bold ${tempUnavailableDays.includes(idx) ? 'bg-primary text-white' : 'bg-white text-slate-500'}`}>{day}</button>
                             ))}
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="lg:col-span-3 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                      <button 
-                        type="button"
-                        onClick={() => setIsAddingStaff(false)}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                      >
-                        ยกเลิก
-                      </button>
-                      <button 
-                        type="submit"
-                        className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-sm hover:bg-primary-dark transition-all"
-                      >
-                        บันทึกข้อมูล
-                      </button>
+                    <div className="lg:col-span-3 flex justify-end gap-3 pt-4 border-t">
+                      <button type="button" onClick={() => setIsAddingStaff(false)} className="px-4 py-2 text-sm">ยกเลิก</button>
+                      <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold">บันทึก</button>
                     </div>
                   </form>
                 </div>
@@ -366,185 +329,161 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {staffList.map((staff) => (
-                  <div key={staff.id} className="bg-white dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark hover:shadow-lg transition-all relative group overflow-hidden">
-                    {/* Corner gradient decorative */}
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors"></div>
-                    
-                    <div className="flex items-start gap-5 relative z-10">
-                      <div className="relative group/avatar">
-                        <div className="size-20 rounded-2xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl">
-                          {staff.avatar ? (
-                            <img src={staff.avatar} className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{staff.initials}</span>
-                          )}
+                  <div key={staff.id} className="bg-white dark:bg-surface-dark p-6 rounded-2xl border border-border-light dark:border-border-dark hover:shadow-lg transition-all relative group">
+                    <div className="flex items-start gap-5">
+                      <div className="relative">
+                        <div className="size-20 rounded-2xl overflow-hidden border-2 bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl">
+                          {staff.avatar ? <img src={staff.avatar} className="w-full h-full object-cover" /> : <span>{staff.initials}</span>}
                         </div>
-                        {/* Inline Image Upload for Existing Staff */}
-                        <label className="absolute -bottom-2 -right-2 size-8 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-100 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:bg-primary hover:text-white transition-colors">
+                        <label className="absolute -bottom-2 -right-2 size-8 bg-white dark:bg-slate-700 rounded-full shadow-lg border flex items-center justify-center cursor-pointer">
                           <span className="material-symbols-outlined !text-[18px]">add_a_photo</span>
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => handleImageChange(e, staff.id)}
-                          />
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(e, staff.id)} />
                         </label>
                       </div>
-
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-xl truncate">{staff.name}</h4>
-                        <div className="flex items-center gap-1 text-primary text-xs font-semibold mt-0.5">
-                          <span className="material-symbols-outlined !text-[14px]">medical_services</span>
-                          {staff.department}
-                        </div>
-                        
-                        <div className="mt-5 space-y-3">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-secondary dark:text-slate-500">
-                              <span className="material-symbols-outlined !text-[12px]">calendar_month</span>
-                              วันที่ไม่สะดวก
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {staff.unavailableDates && staff.unavailableDates.length > 0 ? staff.unavailableDates.map(date => (
-                                <span key={date} className="px-2 py-0.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 rounded-md text-[11px] font-bold border border-orange-100 dark:border-orange-900/50">
-                                  {date}
-                                </span>
-                              )) : <span className="text-[10px] text-slate-400 italic">พร้อมปฏิบัติงานทุกวัน</span>}
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-secondary dark:text-slate-500">
-                              <span className="material-symbols-outlined !text-[12px]">event_repeat</span>
-                              วันสม่ำเสมอที่ไม่สะดวก
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {staff.unavailableDaysOfWeek && staff.unavailableDaysOfWeek.length > 0 ? staff.unavailableDaysOfWeek.map(dayIdx => (
-                                <span key={dayIdx} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-md text-[11px] font-bold border border-indigo-100 dark:border-indigo-900/50">
-                                  {daysOfWeek[dayIdx]}
-                                </span>
-                              )) : <span className="text-[10px] text-slate-400 italic">พร้อมปฏิบัติงานทุกวัน</span>}
-                            </div>
-                          </div>
+                        <p className="text-primary text-xs font-semibold">{staff.department}</p>
+                        <div className="mt-4 space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500">วันที่ไม่สะดวก: {staff.unavailableDates?.join(', ') || '-'}</p>
+                          <p className="text-[10px] font-bold text-slate-500">วันสัปดาห์: {staff.unavailableDaysOfWeek?.map(i => daysOfWeek[i]).join(', ') || '-'}</p>
                         </div>
                       </div>
                     </div>
-                    
-                    <button className="absolute bottom-3 right-3 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
                   </div>
                 ))}
               </div>
             </div>
           ) : activeTab === 'reports' ? (
-            <div className="flex-1 flex flex-col p-6 overflow-auto custom-scrollbar bg-slate-50 dark:bg-background-dark">
+            <div className="flex-1 p-6 overflow-auto bg-slate-50 dark:bg-background-dark">
+               <h1 className="text-2xl font-bold mb-8">รายงานและสถิติ</h1>
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border">
+                    <h3 className="font-bold mb-4">สัดส่วนพยาบาลตามแผนก</h3>
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={deptData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value" label>
+                            {deptData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border">
+                    <h3 className="font-bold mb-4">ประเภทเวร</h3>
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={shiftDistributionData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#136dec" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+               </div>
+            </div>
+          ) : activeTab === 'settings' ? (
+            <div className="flex-1 p-8 overflow-auto max-w-4xl mx-auto w-full">
               <div className="mb-8">
-                <h1 className="text-2xl font-bold">รายงานและสถิติ</h1>
-                <p className="text-text-secondary dark:text-slate-400 text-sm mt-1">สรุปข้อมูลพยาบาลและการปฏิบัติงานในสังกัด</p>
+                <h1 className="text-2xl font-bold">ตั้งค่าระบบ</h1>
+                <p className="text-text-secondary mt-1">กำหนดค่าการเชื่อมต่อฐานข้อมูล MySQL และระบบปฏิบัติการ</p>
               </div>
 
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                      <span className="material-symbols-outlined">group</span>
-                    </div>
-                    <span className="text-sm font-medium text-text-secondary dark:text-slate-400">พยาบาลทั้งหมด</span>
-                  </div>
-                  <p className="text-3xl font-bold">{staffList.length} คน</p>
+              <div className="bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50">
+                  <h3 className="font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">database</span>
+                    การเชื่อมต่อ MySQL (hosDB)
+                  </h3>
                 </div>
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
-                      <span className="material-symbols-outlined">domain</span>
+                
+                <div className="p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Host / Server</label>
+                      <input 
+                        type="text" 
+                        name="host"
+                        value={dbConfig.host}
+                        onChange={handleDbConfigChange}
+                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-primary"
+                        placeholder="localhost"
+                      />
                     </div>
-                    <span className="text-sm font-medium text-text-secondary dark:text-slate-400">แผนกในสังกัด</span>
-                  </div>
-                  <p className="text-3xl font-bold">{deptData.length} แผนก</p>
-                </div>
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
-                      <span className="material-symbols-outlined">calendar_today</span>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Port</label>
+                      <input 
+                        type="text" 
+                        name="port"
+                        value={dbConfig.port}
+                        onChange={handleDbConfigChange}
+                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-primary"
+                        placeholder="3306"
+                      />
                     </div>
-                    <span className="text-sm font-medium text-text-secondary dark:text-slate-400">จำนวนเวรรวมเดือนนี้</span>
-                  </div>
-                  <p className="text-3xl font-bold">{MOCK_SHIFTS.filter(s => s.type !== ShiftType.OFF).length} เวร</p>
-                </div>
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
-                      <span className="material-symbols-outlined">event_busy</span>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Database Name</label>
+                      <input 
+                        type="text" 
+                        name="database"
+                        value={dbConfig.database}
+                        onChange={handleDbConfigChange}
+                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-primary"
+                        placeholder="hosDB"
+                      />
                     </div>
-                    <span className="text-sm font-medium text-text-secondary dark:text-slate-400">จำนวนการลาเดือนนี้</span>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Username</label>
+                      <input 
+                        type="text" 
+                        name="username"
+                        value={dbConfig.username}
+                        onChange={handleDbConfigChange}
+                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-primary"
+                        placeholder="root"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold mb-2">Password</label>
+                      <input 
+                        type="password" 
+                        name="password"
+                        value={dbConfig.password}
+                        onChange={handleDbConfigChange}
+                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-primary"
+                        placeholder="••••••••"
+                      />
+                    </div>
                   </div>
-                  <p className="text-3xl font-bold">{MOCK_SHIFTS.filter(s => s.type === ShiftType.LEAVE).length} ครั้ง</p>
+
+                  <div className="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm">
+                      <span className="material-symbols-outlined !text-[18px]">check_circle</span>
+                      <span className="font-medium">สถานะ: จำลองการเชื่อมต่อสำเร็จ</span>
+                    </div>
+                    <button 
+                      className="px-8 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                      onClick={() => alert('บันทึกการตั้งค่าฐานข้อมูลสำเร็จ (จำลอง)')}
+                    >
+                      บันทึกการตั้งค่า
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Department Pie Chart */}
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <h3 className="text-lg font-bold mb-6">สัดส่วนพยาบาลตามแผนก</h3>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={deptData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {deptData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend verticalAlign="bottom" height={36}/>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Shift Type Distribution */}
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-                  <h3 className="text-lg font-bold mb-6">ความหนาแน่นของประเภทเวร (เดือนปัจจุบัน)</h3>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={shiftDistributionData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip cursor={{fill: 'transparent'}} />
-                        <Bar dataKey="value" name="จำนวนเวร" fill="#136dec" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Staff Workload Chart */}
-                <div className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm lg:col-span-2">
-                  <h3 className="text-lg font-bold mb-6">ภาระงานรายบุคคล (จำนวนเวรรวมต่อสัปดาห์)</h3>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={staffWorkloadData}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" />
-                        <YAxis dataKey="name" type="category" width={100} />
-                        <Tooltip cursor={{fill: 'transparent'}} />
-                        <Legend />
-                        <Bar dataKey="เวร" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+              <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-2xl border border-blue-100 dark:border-blue-900/30">
+                <h4 className="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined !text-[20px]">info</span>
+                  หมายเหตุสำหรับการเชื่อมต่อ
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
+                  เนื่องจากแอปพลิเคชันเวอร์ชันนี้เป็น Frontend-only การเชื่อมต่อ MySQL จะต้องทำผ่าน API Backend (เช่น Node.js, PHP หรือ Python) 
+                  ค่าที่กรอกด้านบนจะถูกนำไปใช้ในไฟล์ Configuration ของ Backend ของคุณเพื่อให้ระบบสามารถเข้าถึงฐานข้อมูล <b>{dbConfig.database}</b> ได้อย่างถูกต้อง
+                </p>
               </div>
             </div>
           ) : (
