@@ -1,0 +1,5 @@
+{
+  "name": "Thep Satri Hospital Scheduler",
+  "description": "A high-performance hospital staff scheduling application featuring interactive weekly grids, department filters, and smart shift management.",
+  "requestFramePermissions": []
+}
